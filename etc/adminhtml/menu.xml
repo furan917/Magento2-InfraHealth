@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="Furan_InfraHealth::infra_health"
+             title="Infrastructure Health"
+             translate="title"
+             module="Furan_InfraHealth"
+             sortOrder="5"
+             parent="Magento_Backend::system_tools"
+             action="infrahealth/dashboard/index"
+             resource="Furan_InfraHealth::dashboard"/>
+    </menu>
+</config>

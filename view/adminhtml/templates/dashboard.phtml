@@ -1,0 +1,51 @@
+<?php
+/**
+ * @var \Magento\Backend\Block\Template $block
+ * @var \Magento\Framework\Escaper $escaper
+ * @var \Furan\InfraHealth\ViewModel\Dashboard $viewModel
+ */
+$viewModel = $block->getData('view_model');
+$init = ['[data-role="infrahealth"]' => ['Furan_InfraHealth/js/dashboard' => $viewModel->getJsConfig()]];
+?>
+<div class="ih-dash" data-role="infrahealth">
+    <section class="ih-hero" aria-live="polite">
+        <div class="ih-hero__headline">
+            <span class="ih-dot ih-dot--pending" data-role="hero-dot"></span>
+            <h2 class="ih-hero__title" data-role="hero-title"><?= $escaper->escapeHtml(__('Checking services…')) ?></h2>
+        </div>
+        <p class="ih-hero__sub" data-role="hero-sub">
+            <?= $escaper->escapeHtml(__('Running read-only probes against each configured backend.')) ?>
+        </p>
+        <div class="ih-controls">
+            <div class="ih-seg" role="group" aria-label="<?= $escaper->escapeHtmlAttr(__('Refresh interval')) ?>"
+                 data-role="interval">
+                <button type="button" data-interval="5">5s</button>
+                <button type="button" data-interval="15">15s</button>
+                <button type="button" data-interval="30">30s</button>
+                <button type="button" data-interval="0"><?= $escaper->escapeHtml(__('Paused')) ?></button>
+            </div>
+            <button type="button" class="ih-refresh" data-role="refresh"><?= $escaper->escapeHtml(__('Refresh now')) ?></button>
+        </div>
+    </section>
+
+    <section class="ih-board" aria-label="<?= $escaper->escapeHtmlAttr(__('How Magento is wired')) ?>">
+        <header class="ih-board__head">
+            <h3><?= $escaper->escapeHtml(__('How Magento is wired')) ?></h3>
+            <p><?= $escaper->escapeHtml(__('Each subsystem and the backend it talks to, from env.php and store config.')) ?></p>
+        </header>
+        <div class="ih-board__grid" data-role="board">
+            <svg class="ih-board__wires" data-role="wires" aria-hidden="true"></svg>
+            <ul class="ih-board__col ih-board__col--left" role="list" data-role="subsystems"></ul>
+            <div class="ih-board__gap"></div>
+            <ul class="ih-board__col ih-board__col--right" role="list" data-role="backends"></ul>
+        </div>
+    </section>
+
+    <section class="ih-nodes" data-role="nodes" hidden></section>
+
+    <div class="ih-services" data-role="services"></div>
+    <div class="ih-unused" data-role="unused"></div>
+
+    <footer class="ih-foot" data-role="foot"></footer>
+</div>
+<script type="text/x-magento-init"><?= /* @noEscape */ json_encode($init, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES) ?></script>

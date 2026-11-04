@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Furan\InfraHealth\Model\ProbeRunner">
+        <arguments>
+            <argument name="probes" xsi:type="array">
+                <item name="node" xsi:type="object">Furan\InfraHealth\Model\Probe\NodeProbe</item>
+                <item name="mysql" xsi:type="object">Furan\InfraHealth\Model\Probe\MysqlProbe</item>
+                <item name="redis" xsi:type="object">Furan\InfraHealth\Model\Probe\RedisProbe</item>
+                <item name="search" xsi:type="object">Furan\InfraHealth\Model\Probe\SearchProbe</item>
+                <item name="rabbitmq" xsi:type="object">Furan\InfraHealth\Model\Probe\RabbitMqProbe</item>
+            </argument>
+            <argument name="sortOrders" xsi:type="array">
+                <item name="node" xsi:type="number">10</item>
+                <item name="mysql" xsi:type="number">20</item>
+                <item name="redis" xsi:type="number">30</item>
+                <item name="search" xsi:type="number">40</item>
+                <item name="rabbitmq" xsi:type="number">50</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="Magento\Framework\Console\CommandListInterface">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="furan_infrahealth_status" xsi:type="object">Furan\InfraHealth\Console\Command\StatusCommand</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <head>
+        <css src="Furan_InfraHealth::css/dashboard.css"/>
+    </head>
+    <body>
+        <referenceContainer name="content">
+            <block class="Magento\Backend\Block\Template"
+                   name="furan.infrahealth.dashboard"
+                   template="Furan_InfraHealth::dashboard.phtml">
+                <arguments>
+                    <argument name="view_model" xsi:type="object">Furan\InfraHealth\ViewModel\Dashboard</argument>
+                </arguments>
+            </block>
+        </referenceContainer>
+    </body>
+</page>
