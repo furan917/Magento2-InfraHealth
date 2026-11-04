@@ -10,6 +10,7 @@ class HttpJson
 {
     private const CONNECT_TIMEOUT_MS = 1000;
     private const TIMEOUT_MS = 2500;
+    private const MAX_BYTES = 8388608;
 
     /**
      * @return array{0: mixed, 1: float} Decoded body and elapsed milliseconds
@@ -33,15 +34,25 @@ class HttpJson
             curl_setopt($ch, CURLOPT_USERPWD, $username . ':' . $password);
         }
 
+        $body = '';
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
+        curl_setopt($ch, CURLOPT_WRITEFUNCTION, static function ($ch, string $chunk) use (&$body): int {
+            $body .= $chunk;
+            // Returning a short count aborts the transfer once the cap is hit.
+            return strlen($body) > self::MAX_BYTES ? 0 : strlen($chunk);
+        });
+
         $start = hrtime(true);
-        $body = curl_exec($ch);
+        $ok = curl_exec($ch);
         $elapsed = (hrtime(true) - $start) / 1e6;
         $code = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $error = curl_error($ch);
         curl_close($ch);
 
-        if ($body === false) {
-            throw new \RuntimeException('Connection failed: ' . $error);
+        if ($ok === false) {
+            throw new \RuntimeException(strlen($body) > self::MAX_BYTES
+                ? 'Response larger than ' . (self::MAX_BYTES >> 20) . ' MB'
+                : 'Connection failed: ' . $error);
         }
         if ($code >= 400) {
             throw new \RuntimeException(sprintf('HTTP %d from %s', $code, parse_url($url, PHP_URL_PATH) ?: '/'));

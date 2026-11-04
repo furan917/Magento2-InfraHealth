@@ -30,7 +30,7 @@ class SearchConfig
     {
         $value = fn (string $key) => (string)$this->scopeConfig->getValue("catalog/search/{$engine}_{$key}");
         $auth = (bool)$value('enable_auth');
-        [$url, $host, $port] = $this->endpoint(
+        [$url, $host, $port, $urlUser, $urlPassword] = $this->endpoint(
             $value('server_hostname') ?: 'localhost',
             (int)($value('server_port') ?: 9200),
             false
@@ -43,8 +43,8 @@ class SearchConfig
             'host' => $host,
             'port' => $port,
             'prefix' => $value('index_prefix') ?: 'magento2',
-            'username' => $auth ? $value('username') : '',
-            'password' => $auth ? $value('password') : '',
+            'username' => $auth ? $value('username') : $urlUser,
+            'password' => $auth ? $value('password') : $urlPassword,
             'verify_tls' => true,
         ];
     }
@@ -57,6 +57,7 @@ class SearchConfig
 
         $servers = [];
         $first = null;
+        $urlUser = $urlPassword = '';
         foreach (array_filter(array_map('trim', explode(',', $value('servers') ?: 'localhost:9200'))) as $server) {
             $port = 9200;
             if (preg_match('/^(.*):(\d+)$/', $server, $m)) {
@@ -64,6 +65,9 @@ class SearchConfig
             }
             $endpoint = $this->endpoint($server, $port, $https);
             $first ??= $endpoint;
+            if ($urlUser === '' && $endpoint[3] !== '') {
+                [$urlUser, $urlPassword] = [$endpoint[3], $endpoint[4]];
+            }
             $servers[] = $endpoint[0];
         }
         $first ??= $this->endpoint('localhost', 9200, $https);
@@ -76,14 +80,14 @@ class SearchConfig
             'port' => $first[2],
             'prefix' => (string)($this->scopeConfig->getValue('smile_elasticsuite_core_base_settings/indices_settings/alias')
                 ?: 'magento2'),
-            'username' => $auth ? $value('http_auth_user') : '',
-            'password' => $auth ? $value('http_auth_pwd') : '',
+            'username' => $auth ? $value('http_auth_user') : $urlUser,
+            'password' => $auth ? $value('http_auth_pwd') : $urlPassword,
             'verify_tls' => $value('enable_certificate_validation') !== '0',
         ];
     }
 
     /**
-     * @return array{0: string, 1: string, 2: int} Base URL, host, port
+     * @return array{0: string, 1: string, 2: int, 3: string, 4: string} Base URL, host, port, user, password
      */
     private function endpoint(string $host, int $port, bool $https): array
     {
@@ -92,8 +96,14 @@ class SearchConfig
             $scheme = strtolower($m[1]);
             $host = substr($host, strlen($m[0]));
         }
+        // Credentials written into the host are used for auth only, never kept in the URL.
+        $user = $password = '';
+        if (preg_match('#^([^@/]*)@(.+)$#', $host, $m)) {
+            [$user, $password] = array_map('rawurldecode', array_pad(explode(':', $m[1], 2), 2, ''));
+            $host = $m[2];
+        }
         $host = rtrim($host, '/');
         $urlHost = str_contains($host, ':') && !str_starts_with($host, '[') ? '[' . $host . ']' : $host;
-        return [sprintf('%s://%s:%d', $scheme, $urlHost, $port), $host, $port];
+        return [sprintf('%s://%s:%d', $scheme, $urlHost, $port), $host, $port, $user, $password];
     }
 }

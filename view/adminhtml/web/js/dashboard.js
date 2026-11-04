@@ -640,9 +640,13 @@ define([], function () {
         svg.setAttribute('width', box.width);
         svg.setAttribute('height', box.height);
 
+        // Match by value, not selector: hostnames can contain characters that break selectors.
+        var endpoints = Array.prototype.slice.call(board.querySelectorAll('[data-ep]'));
         this.links.forEach(function (link) {
-            var a = board.querySelector('[data-link="' + link.from + '"]'),
-                b = board.querySelector('[data-ep="' + (window.CSS && CSS.escape ? CSS.escape(link.to) : link.to) + '"]');
+            var a = board.querySelector('[data-link="' + Number(link.from) + '"]'),
+                b = endpoints.filter(function (el) {
+                    return el.getAttribute('data-ep') === link.to;
+                })[0];
             if (!a || !b) {
                 return;
             }

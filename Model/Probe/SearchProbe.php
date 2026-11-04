@@ -35,7 +35,7 @@ class SearchProbe implements ProbeInterface
         $result->addConfig(count($cfg['servers']) > 1 ? 'Servers' : 'Endpoint', implode(', ', $cfg['servers']));
         $result->addConfig('Engine setting', $cfg['engine']);
         $result->addConfig('Index prefix', $cfg['prefix']);
-        $result->addConfig('Auth', $cfg['username'] !== '' ? 'user ' . $cfg['username'] : 'none');
+        $result->addConfig('Auth', $cfg['username'] !== '' ? 'set' : 'none');
         if (!$cfg['verify_tls']) {
             $result->addConfig('TLS certificate check', 'disabled in config');
         }

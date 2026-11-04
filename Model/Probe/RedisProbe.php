@@ -45,7 +45,7 @@ class RedisProbe implements ProbeInterface
         $result = new ProbeResult('redis', 'Redis', $id);
         $result->addConfig('Endpoint', $id);
         $result->addConfig('Auth', match (true) {
-            ($server['username'] ?? '') !== '' => 'ACL user ' . $server['username'],
+            ($server['username'] ?? '') !== '' => 'ACL user set',
             $server['password'] !== '' => 'password set',
             default => 'none',
         });

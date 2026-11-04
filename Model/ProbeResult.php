@@ -32,6 +32,7 @@ class ProbeResult
         private string $label,
         private string $instance = ''
     ) {
+        $this->instance = Redactor::clean($instance);
     }
 
     public function setStatus(string $status): self
@@ -65,13 +66,13 @@ class ProbeResult
 
     public function setSummary(string $summary): self
     {
-        $this->summary = $summary;
+        $this->summary = Redactor::clean($summary);
         return $this;
     }
 
     public function addConfig(string $label, string|int|float|null $value): self
     {
-        $this->config[] = ['label' => $label, 'value' => (string)($value ?? '—')];
+        $this->config[] = ['label' => $label, 'value' => Redactor::clean((string)($value ?? '—'))];
         return $this;
     }
 
@@ -125,7 +126,7 @@ class ProbeResult
      */
     public function addTip(string $text): self
     {
-        $this->tips[] = $text;
+        $this->tips[] = Redactor::clean($text);
         return $this->degrade(self::STATUS_TIP);
     }
 
@@ -154,7 +155,7 @@ class ProbeResult
     public function fail(\Throwable|string $error): self
     {
         $this->status = self::STATUS_DOWN;
-        $this->error = $error instanceof \Throwable ? $error->getMessage() : $error;
+        $this->error = Redactor::clean($error instanceof \Throwable ? $error->getMessage() : $error);
         return $this;
     }
 

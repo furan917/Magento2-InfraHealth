@@ -148,6 +148,12 @@ class Wiring
             }
         }
 
+        foreach ($rows as &$row) {
+            $row['target'] = Redactor::clean($row['target']);
+            $row['service'] = $row['service'] === null ? null : Redactor::clean($row['service']);
+        }
+        unset($row);
+
         return $rows;
     }
 

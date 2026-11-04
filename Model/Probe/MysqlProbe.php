@@ -90,7 +90,6 @@ class MysqlProbe implements ProbeInterface
         $host = (string)($db['host'] ?? '?');
         $result->addConfig('Host', $host);
         $result->addConfig('Database', $db['dbname'] ?? '?');
-        $result->addConfig('User', $db['username'] ?? '?');
 
         try {
             $connection = $connect();

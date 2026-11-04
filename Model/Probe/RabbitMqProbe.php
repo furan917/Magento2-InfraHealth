@@ -54,7 +54,7 @@ class RabbitMqProbe implements ProbeInterface
         $result = new ProbeResult('rabbitmq', 'RabbitMQ', $host . ':' . $port);
         $result->addConfig('AMQP endpoint', $host . ':' . $port);
         $result->addConfig('Virtual host', $vhost);
-        $result->addConfig('User', $user ?: '—');
+        $result->addConfig('Auth', $user !== '' ? 'set' : 'none');
         $result->addConfig('TLS', $tls ? 'enabled' : 'off');
 
         $start = hrtime(true);
