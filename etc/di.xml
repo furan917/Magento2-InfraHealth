@@ -8,6 +8,7 @@
                 <item name="redis" xsi:type="object">Furan\InfraHealth\Model\Probe\RedisProbe</item>
                 <item name="search" xsi:type="object">Furan\InfraHealth\Model\Probe\SearchProbe</item>
                 <item name="rabbitmq" xsi:type="object">Furan\InfraHealth\Model\Probe\RabbitMqProbe</item>
+                <item name="dbqueue" xsi:type="object">Furan\InfraHealth\Model\Probe\MysqlQueueProbe</item>
             </argument>
             <argument name="sortOrders" xsi:type="array">
                 <item name="node" xsi:type="number">10</item>
@@ -15,6 +16,7 @@
                 <item name="redis" xsi:type="number">30</item>
                 <item name="search" xsi:type="number">40</item>
                 <item name="rabbitmq" xsi:type="number">50</item>
+                <item name="dbqueue" xsi:type="number">55</item>
             </argument>
         </arguments>
     </type>

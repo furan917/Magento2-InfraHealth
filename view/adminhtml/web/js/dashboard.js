@@ -6,6 +6,8 @@ define([], function () {
 
     var HISTORY = 40,
         NODE_STALE_MS = 90000,
+        // Each request holds the admin session lock (Redis or files) until it starts probing.
+        STAGGER_MS = 120,
         STATUS_WORD = {pending: 'Checking', ok: 'Healthy', tip: 'Could be tuned', warn: 'Degraded', down: 'Unreachable', off: 'Not used', local: 'Local', unknown: 'Not probed'},
         SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -115,7 +117,7 @@ define([], function () {
         return sec < 5 ? 'just now' : sec < 60 ? sec + 's ago' : Math.round(sec / 60) + 'm ago';
     }
 
-    var BACKEND_ORDER = ['mysql', 'redis', 'search', 'rabbitmq', 'ext', 'shared', 'disk', 'local'];
+    var BACKEND_ORDER = ['mysql', 'redis', 'search', 'rabbitmq', 'dbqueue', 'ext', 'shared', 'disk', 'local'];
 
     /**
      * File-backed subsystems: one board node per shared mount, one for "can't tell", one for local disk.
@@ -264,9 +266,13 @@ define([], function () {
         this.roundStarted = Date.now();
         this.root.classList.add('is-loading');
 
-        this.probes.forEach(function (probe) {
+        this.probes.forEach(function (probe, i) {
             self.pending[probe.code] = true;
-            self.fetchProbe(probe.code)
+            new Promise(function (resolve) {
+                setTimeout(resolve, i * STAGGER_MS);
+            }).then(function () {
+                return self.fetchProbe(probe.code);
+            })
                 .then(function (data) {
                     self.ingest(probe.code, data);
                 }, function (err) {
@@ -544,8 +550,7 @@ define([], function () {
                 waiting = code && !svc && !self.results[code],
                 key = svc ? serviceKey(svc)
                     : (waiting ? 'pending:' + row.service
-                        : (row.storage ? storageKey(row.storage)
-                            : (row.service || row.backend === 'Varnish' ? 'ext:' + row.backend : 'local'))),
+                        : (row.storage ? storageKey(row.storage) : 'ext:' + row.backend)),
                 ep = byKey[key];
 
             if (!ep && waiting) {
@@ -564,9 +569,9 @@ define([], function () {
                 ep = byKey[key] = {
                     key: key,
                     svc: svc,
-                    title: svc ? svc.label : (row.backend === 'Varnish' ? 'Varnish' : 'This node'),
-                    detail: svc ? svc.instance : (row.backend === 'Varnish' ? row.target : 'Local disk'),
-                    status: svc ? svc.status : (row.backend === 'Varnish' ? 'unknown' : 'local')
+                    title: svc ? svc.label : row.backend,
+                    detail: svc ? svc.instance : row.target,
+                    status: svc ? svc.status : 'unknown'
                 };
                 endpoints.push(ep);
             }

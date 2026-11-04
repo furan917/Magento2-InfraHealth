@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Furan\InfraHealth\Model;
 
 use Furan\InfraHealth\Api\WiringProviderInterface;
+use Furan\InfraHealth\Model\Probe\MysqlQueueProbe;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\DeploymentConfig;
 use Magento\Framework\App\Filesystem\DirectoryList;
@@ -21,6 +22,7 @@ class Wiring
         private StorageLocator $storageLocator,
         private DirectoryList $directoryList,
         private ReadConnections $readConnections,
+        private MysqlQueueProbe $mysqlQueue,
         private array $providers = []
     ) {
     }
@@ -86,8 +88,15 @@ class Wiring
                 'target' => $id . ' vhost ' . ($amqp['virtualhost'] ?? '/'),
                 'service' => 'rabbitmq:' . $id,
             ];
-        } else {
-            $rows[] = ['subsystem' => 'Message queue', 'backend' => 'MySQL', 'target' => 'queue_message table', 'service' => 'mysql'];
+        }
+        $dbQueues = count($this->mysqlQueue->queueNames());
+        if ($dbQueues) {
+            $rows[] = [
+                'subsystem' => empty($amqp['host']) ? 'Message queue' : 'Message queue (MySQL)',
+                'backend' => 'MySQL',
+                'target' => $dbQueues . ' queue' . ($dbQueues === 1 ? '' : 's'),
+                'service' => 'dbqueue',
+            ];
         }
 
         $lock = (string)$this->deploymentConfig->get('lock/provider', 'db');
@@ -110,8 +119,11 @@ class Wiring
             ? $this->fileRow('Media storage', 'File', $this->directoryList->getPath(DirectoryList::MEDIA))
             : [
                 'subsystem' => 'Media storage',
-                'backend' => strtoupper($driver),
-                'target' => (string)$this->deploymentConfig->get('remote_storage/config/bucket', ''),
+                'backend' => $driver === 'aws-s3' ? 'Amazon S3' : ucfirst($driver),
+                'target' => trim(implode(' ', [
+                    (string)$this->deploymentConfig->get('remote_storage/config/bucket', ''),
+                    (string)$this->deploymentConfig->get('remote_storage/config/region', ''),
+                ])),
                 'service' => null,
             ];
 
