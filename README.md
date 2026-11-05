@@ -1,6 +1,6 @@
 # Furan_InfraHealth
 
-Infrastructure health for the Magento admin. See what Magento is wired to and how each backend is doing, at a glance.
+Stateless infrastructure health for the Magento admin. See what Magento is wired to and how each backend is doing, at a glance.
 
 <table>
   <tr>
