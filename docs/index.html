@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infrastructure Health for Magento and Mage-OS</title>
+<meta name="description" content="A free, MIT-licensed admin dashboard for Magento 2 and Mage-OS: see what Magento is wired to and how MySQL, Redis, OpenSearch, RabbitMQ and each app node are doing, with read-only probes and nothing stored.">
+<meta property="og:title" content="Infrastructure Health for Magento and Mage-OS">
+<meta property="og:description" content="Free and MIT licensed. See what Magento is wired to and how each backend is doing, at a glance.">
+<meta property="og:image" content="assets/overview.webp">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,500;0,700;0,800;1,400&display=swap">
+<style>
+/*
+  Layout: one left-aligned reading column (max 1160px). Each section is drawn like a dashboard panel:
+  a hairline box with its heading sitting in the top border, the way a <legend> does.
+  Light only: white paper, a cool grey wash for panels, teal for links and the primary action.
+  Status colours (green, amber, red) are reserved for health states so they keep their meaning.
+*/
+:root {
+  color-scheme: light;
+  --paper: #f6f7f8;
+  --wash: #eceef1;       /* header band, chips, table heads */
+  --sheet: #ffffff;
+  --ink: #1d2127;
+  --muted: #5a6370;
+  --rule: #d6dbe1;
+  --rule-soft: #e1e5ea;
+  --focus: #0e7490;      /* teal: links, primary button, focus ring */
+  --focus-deep: #155e75;
+  --focus-wash: #e3f2f6;
+  --ok: #2f7a4f;
+  --ok-wash: #e6f3ec;
+  --tip: #2563eb;
+  --tip-wash: #e8f0fd;
+  --warn: #b45309;
+  --warn-wash: #fdf3e7;
+  --down: #b42318;
+  --down-wash: #fbe9e7;
+  --off: #8a94a0;
+  --code-bg: #f6f7f8;
+  --code-ink: #1d2127;
+  --shadow: 0 1px 2px rgba(29, 33, 39, 0.05), 0 12px 32px -16px rgba(29, 33, 39, 0.22);
+  --body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "Atkinson Hyperlegible Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--focus); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+code, kbd, pre { font-family: var(--mono); }
+code { font-size: 0.9em; background: var(--wash); padding: 0.05em 0.35em; border-radius: 4px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; line-height: 1.15; }
+p { margin: 0; max-width: 64ch; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+.muted { color: var(--muted); }
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: 16px; top: 16px; background: var(--sheet); padding: 8px 12px; z-index: 10; }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding-block: 22px; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 1.05rem; }
+.brand svg { flex: none; }
+.brand small { font-weight: 400; color: var(--muted); }
+.top nav { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 0.95rem; }
+.top nav a { color: var(--ink); text-decoration: none; }
+.top nav a:hover { color: var(--focus); }
+
+/* Hero */
+body { overflow-x: clip; }
+.top, .hero { position: relative; }
+.top::before, .hero::before { content: ""; position: absolute; inset: 0 calc(50% - 50vw); z-index: -1; background: var(--wash); }
+.hero::before { background: linear-gradient(180deg, var(--wash), var(--paper)); }
+.hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: 40px 56px; align-items: end; padding-block: 40px 36px; }
+.hero h1 { font-size: clamp(2.3rem, 5.2vw, 4.1rem); font-weight: 800; letter-spacing: -0.025em; line-height: 1.02; }
+.hero .lede { margin-top: 20px; font-size: 1.16rem; color: var(--muted); max-width: 52ch; }
+.hero-side { display: grid; gap: 16px; }
+.install { background: var(--sheet); color: var(--code-ink); border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; box-shadow: var(--shadow); }
+.install pre { margin: 0; font-size: 0.86rem; line-height: 1.7; overflow-x: auto; white-space: pre; }
+.install pre .c { color: var(--muted); }
+.install-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 0.82rem; color: var(--muted); }
+.copy { font: 600 0.82rem var(--body); color: var(--ink); background: var(--wash); border: 1px solid var(--rule); border-radius: 999px; padding: 3px 12px; cursor: pointer; }
+.copy:hover { border-color: var(--ink); }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; font: 700 0.98rem var(--body); text-decoration: none; padding: 11px 22px; border-radius: 999px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); }
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--focus); border-color: var(--focus); color: #fff; }
+.btn.primary:hover { background: var(--focus-deep); border-color: var(--focus-deep); }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.92rem; color: var(--muted); padding: 0; margin: 0; list-style: none; }
+.facts li { display: flex; align-items: center; gap: 6px; }
+.facts li::before { content: ""; width: 14px; height: 14px; flex: none; background: var(--ok); -webkit-mask: var(--tick) center / contain no-repeat; mask: var(--tick) center / contain no-repeat; }
+:root { --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3 3 7-7' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+
+/* Demo */
+.demo { padding-block: 40px 24px; }
+.demo figure { margin: 0; display: grid; gap: 10px; }
+.frame { position: relative; border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; background: var(--sheet); box-shadow: var(--shadow); }
+.frame img { width: 100%; }
+.demo figcaption { font-size: 0.92rem; color: var(--muted); max-width: 80ch; }
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 6px 0 0; padding: 0; list-style: none; counter-reset: step; }
+.steps li { counter-increment: step; font-size: 0.92rem; display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; }
+.steps li::before { content: counter(step); font: 700 0.8rem var(--body); width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--focus); color: var(--focus); margin-top: 1px; }
+
+/* Panel sections */
+.set { position: relative; border: 1px solid var(--rule); border-radius: 18px; padding: 8px 32px 32px; margin-top: 56px; background: var(--sheet); box-shadow: var(--shadow); }
+.set > .legend { display: inline-block; transform: translateY(-50%); margin-top: -8px; margin-left: -12px; padding: 0 12px; background: linear-gradient(var(--paper) 50%, var(--sheet) 50%); font-size: clamp(1.45rem, 2.6vw, 1.95rem); font-weight: 800; letter-spacing: -0.015em; }
+.set > .help { margin-top: -6px; color: var(--muted); font-size: 1.04rem; max-width: 70ch; }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 32px 40px; margin-top: 28px; align-items: start; }
+.split.flip { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+.points { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+.points li { padding-left: 22px; position: relative; }
+.points li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 8px; height: 8px; background: var(--focus); border-radius: 50%; }
+.points b { font-weight: 700; }
+.shot { margin: 0; display: grid; gap: 8px; min-width: 0; }
+.shots { display: grid; gap: 32px; min-width: 0; }
+.shot figcaption { font-size: 0.86rem; color: var(--muted); }
+
+/* Probe cards */
+.probes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
+.probe { border: 1px solid var(--rule-soft); border-radius: 12px; padding: 18px 20px; display: grid; gap: 8px; align-content: start; background: var(--paper); }
+.probe h3 { font-size: 1.04rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.probe h3::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--ok); flex: none; }
+.probe p { color: var(--muted); font-size: 0.95rem; }
+.probe .flags { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.probe .flags li { font-size: 0.8rem; border-radius: 6px; padding: 1px 8px; border: 1px solid transparent; }
+.flags .w { background: var(--warn-wash); color: var(--warn); border-color: #f3d9b8; }
+.flags .d { background: var(--down-wash); color: var(--down); border-color: #f2c6c0; }
+.flags .t { background: var(--tip-wash); color: var(--tip); border-color: #c7d9fb; }
+
+/* Status table */
+.status td:first-child { white-space: nowrap; font-weight: 700; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; margin-right: 8px; position: relative; top: -1px; }
+.dot.ok { background: var(--ok); } .dot.tip { background: var(--tip); } .dot.warn { background: var(--warn); } .dot.down { background: var(--down); } .dot.off { background: var(--off); }
+
+/* Facts grid */
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 40px; margin-top: 24px; }
+.grid2.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.item { padding-block: 16px; border-top: 1px solid var(--rule-soft); display: grid; gap: 4px; align-content: start; }
+.item h3 { font-size: 1.04rem; font-weight: 700; }
+.item p { color: var(--muted); font-size: 0.97rem; }
+
+/* Chip lists */
+.types { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px 24px; margin-top: 28px; }
+.types h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; }
+.types h3 span { color: var(--muted); font-weight: 400; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.chips li { font-size: 0.86rem; background: var(--wash); border: 1px solid var(--rule); border-radius: 6px; padding: 2px 9px; }
+
+/* Tables */
+.tablewrap { overflow-x: auto; margin-top: 24px; border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+th { font-weight: 700; font-size: 0.86rem; color: var(--muted); background: var(--wash); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Good to know */
+.limits { margin: 20px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; }
+.limits li { padding: 14px 0 0; border-top: 2px solid var(--focus-wash); }
+.limits b { display: block; margin-bottom: 2px; }
+.limits span { color: var(--muted); font-size: 0.97rem; }
+
+/* Code and terminal */
+.code { background: var(--code-bg); color: var(--code-ink); border: 1px solid var(--rule-soft); border-radius: 12px; padding: 16px 18px; font-size: 0.88rem; line-height: 1.75; overflow-x: auto; margin: 0; white-space: pre; }
+.code .c { color: var(--muted); }
+.term { background: #1d2127; color: #e6e9ee; border: 1px solid #2c323b; border-radius: 12px; padding: 16px 18px; font-size: 0.86rem; line-height: 1.7; overflow-x: auto; margin: 0; white-space: pre; box-shadow: var(--shadow); }
+.term .p { color: #8a94a0; }
+.term .ok { color: #6fcf97; font-weight: 500; }
+.term .tip { color: #6cc4e0; font-weight: 500; }
+.term .warn { color: #f2b35b; font-weight: 500; }
+.term .down { color: #f28b82; font-weight: 500; }
+.term .dim { color: #8a94a0; }
+.req { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 32px; margin-top: 24px; }
+.req div { display: grid; gap: 2px; }
+.req dt { font-weight: 700; font-size: 0.95rem; }
+.req dd { margin: 0; color: var(--muted); font-size: 0.95rem; }
+
+footer { padding-block: 56px 48px; color: var(--muted); font-size: 0.92rem; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; }
+footer a { color: inherit; }
+footer span:last-child { display: flex; gap: 20px; }
+
+@media (max-width: 960px) {
+  .hero, .split, .split.flip, .limits, .grid2.three { grid-template-columns: minmax(0, 1fr); }
+  .limits { gap: 16px; }
+  .types { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .probes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .req { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 680px) {
+  body { font-size: 16px; }
+  .set { padding: 4px 18px 22px; border-radius: 12px; }
+  .grid2, .limits, .types, .probes { grid-template-columns: minmax(0, 1fr); }
+  .steps { grid-template-columns: minmax(0, 1fr); }
+  .top nav { gap: 4px 14px; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./" aria-label="Infrastructure Health home">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="1" y="1" width="26" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 14.5h4.5l2.5-6.5 4 12 2.5-5.5H23" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Infrastructure Health <small>for Magento</small></span>
+    </a>
+    <nav aria-label="Sections">
+      <a href="#wiring">Wiring</a>
+      <a href="#checks">Checks</a>
+      <a href="#live">Live</a>
+      <a href="#hosting">Hosting</a>
+      <a href="#cli">Terminal</a>
+      <a href="#extend">Extend</a>
+      <a href="#safety">Safety</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/furan917/Magento2-InfraHealth">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div>
+        <h1>See what Magento is wired to, and how it is doing.</h1>
+        <p class="lede">One admin page that draws the line from each Magento subsystem to the backend behind it, then checks MySQL, Redis, OpenSearch, RabbitMQ and every app node. Read only, nothing stored, MIT licensed.</p>
+      </div>
+      <div class="hero-side">
+        <div class="install">
+          <div class="install-bar"><span>Install with Composer</span><button class="copy" type="button" data-copy="install-cmd">Copy</button></div>
+<pre id="install-cmd">composer require furan/magento-infra-health
+bin/magento setup:upgrade</pre>
+        </div>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/furan917/Magento2-InfraHealth">View on GitHub</a>
+          <a class="btn" href="https://github.com/furan917/Magento2-InfraHealth#readme">Read the documentation</a>
+        </div>
+        <ul class="facts">
+          <li>Magento 2.4 and Mage-OS</li>
+          <li>PHP 8.0 and newer</li>
+          <li>No database tables, no cron, no agents</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="demo" aria-labelledby="demo-title">
+      <h2 id="demo-title" class="skip">The wiring board</h2>
+      <figure>
+        <div class="frame">
+          <img src="assets/overview.webp" width="1568" height="665" alt="The Infrastructure Health page in the Magento admin. The headline reads All 4 services are running. Below it, a wiring board lists Magento subsystems on the left (Database, Locks, Cache, Full page cache, Sessions, Catalog search, Message queue, Media storage) with curved lines to the backends on the right: MySQL healthy at 0.05 ms, Redis healthy at 0.02 ms, OpenSearch marked could be tuned at 0.68 ms, RabbitMQ healthy at 0.31 ms, and local disk for this node only.">
+        </div>
+        <figcaption>System &gt; Tools &gt; Infrastructure Health on a Mage-OS 4.0 store. The board is drawn from configuration the moment the page opens, before any backend has answered.</figcaption>
+        <ol class="steps">
+          <li>The left column lists each Magento subsystem and what env.php and store config point it at.</li>
+          <li>Wires lead to one box per backend, so three Redis databases on one server share one box.</li>
+          <li>Each backend shows its status and round-trip time as soon as its own probe returns.</li>
+          <li>Click a backend to jump to its panel with configuration, figures, gauges and tables.</li>
+        </ol>
+      </figure>
+    </section>
+
+    <section class="set" id="wiring" aria-labelledby="wi-h">
+      <h2 class="legend" id="wi-h">What it knows from config alone</h2>
+      <p class="help">The board reads env.php and store configuration, so it costs nothing and renders without any network call. It answers the question "which Redis is the page cache on?" without opening a file.</p>
+      <div class="types" aria-label="Subsystems on the board">
+        <div><h3>Database</h3><ul class="chips"><li>Writer host and schema</li><li>Read replicas</li><li>Adobe Commerce slave_connection</li><li>Magentiz_SplitDb</li><li>Furan_ReadWriteSplit</li></ul></div>
+        <div><h3>Caches and sessions</h3><ul class="chips"><li>Cache backend and database</li><li>Full page cache or Varnish</li><li>L2 cache</li><li>Sessions in Redis, MySQL or files</li><li>Lock provider</li></ul></div>
+        <div><h3>Search and queues</h3><ul class="chips"><li>OpenSearch</li><li>Elasticsearch 7 and 8</li><li>ElasticSuite</li><li>RabbitMQ virtual host</li><li>Queues running on MySQL</li></ul></div>
+        <div><h3>Storage</h3><ul class="chips"><li>Media on local disk</li><li>Shared mounts (NFS, EFS, GlusterFS, CephFS)</li><li>Amazon S3 remote storage</li><li>File caches, sessions and locks</li></ul></div>
+      </div>
+      <div class="grid2">
+        <div class="item"><h3>Shared or per node</h3><p>File-backed subsystems are traced to their mount. A media folder on NFS, EFS, FSx, Azure Files or a FUSE bucket is shown as shared across nodes. A local disk is labelled "this node only", which is exactly what you want to know before adding a second web server.</p></div>
+        <div class="item"><h3>Grouped so wires never cross</h3><p>Subsystems are sorted by the backend they land on. Cache, page cache and sessions line up next to each other and converge on one Redis box.</p></div>
+      </div>
+    </section>
+
+    <section class="set" id="checks" aria-labelledby="ch-h">
+      <h2 class="legend" id="ch-h">What it checks</h2>
+      <p class="help">Six probes ship with the module. Each one runs in its own request, so a dead backend never delays the others, and each panel shows configuration on the left and figures, ring gauges and tables on the right.</p>
+      <div class="probes">
+        <div class="probe"><h3>MySQL</h3><p>Writer and every read replica: version, role, uptime, connections against max_connections, running threads, queries per second, slow queries, schema size, row lock waits, buffer pool hit rate and replica lag. Aurora clusters list every member and its lag.</p><ul class="flags"><li class="d">Main connection on a read-only instance</li><li class="w">Connections above 80%</li><li class="w">Replica lag over 30 s</li><li class="t">Read connection reaching the writer</li></ul></div>
+        <div class="probe"><h3>Redis and Valkey</h3><p>One panel per server, with the databases Magento uses on it: keys, ops per second, memory, clients, evictions, fragmentation, hit ratio, eviction policy, role and attached replicas. Works with Sentinel and ACL users.</p><ul class="flags"><li class="d">Magento writes to a read-only replica</li><li class="w">Cluster mode enabled</li><li class="w">Memory above 90%</li><li class="w">Evictions with noeviction</li><li class="t">Reads not offloaded to the replica</li></ul></div>
+        <div class="probe"><h3>OpenSearch and Elasticsearch</h3><p>Cluster health, nodes, documents, store size, lifetime and live query and indexing latency, shard placement, JVM heap on the busiest node, and a table of the indices under Magento's prefix. ElasticSuite's server list is tried in order.</p><ul class="flags"><li class="d">Cluster red</li><li class="w">Cluster yellow with several nodes</li><li class="w">A listed server unreachable</li><li class="t">Single node, so yellow is expected</li></ul></div>
+        <div class="probe"><h3>RabbitMQ</h3><p>Broker version, cluster name, connections, publish and deliver rates, and every queue with ready, unacked, consumers and in and out rates. Reads the management API, and falls back to passive declares over AMQP when it is not reachable.</p><ul class="flags"><li class="d">AMQP port unreachable</li><li class="w">1,000 or more messages waiting</li><li class="w">A backlog with no consumer</li></ul></div>
+        <div class="probe"><h3>MySQL queue</h3><p>For queues that run on Magento_MysqlMq, with or without RabbitMQ alongside: waiting, in progress, retry and failed counts per queue, sorted by backlog.</p><ul class="flags"><li class="w">1,000 or more waiting</li><li class="w">Messages in retry or error</li></ul></div>
+        <div class="probe"><h3>App node</h3><p>Whichever node answered the request: hostname, platform, OS, PHP and SAPI, Magento mode, memory limits, host load, CPU cores and cgroup CPU and memory limits in a container, plus OPcache hit rate, memory, keys and JIT.</p><ul class="flags"><li class="w">OPcache disabled or full</li><li class="w">Container memory above 90%</li></ul></div>
+      </div>
+      <div class="shots" style="margin-top:32px">
+        <figure class="shot">
+          <div class="frame"><img src="assets/redis.webp" width="1568" height="472" loading="lazy" alt="The Redis panel: version 6.2.24 master up 8 days with a 0.04 ms round trip sparkline. Configuration on the left lists endpoint, auth, TLS, the cache, page cache and session databases, eviction policy and role. Stat tiles show keys, ops per second, memory, clients, evicted keys, fragmentation and hit ratio now, each with a sparkline. Ring gauges show a 61% hit ratio and memory with no maxmemory set. A table lists db 3, db 4 and db 5 with what each is used for, keys and keys with TTL."></div>
+          <figcaption>Redis with the three databases Magento uses on it. The hit ratio ring is lifetime, the "Hit ratio (now)" tile is worked out in the browser between polls.</figcaption>
+        </figure>
+        <figure class="shot">
+          <div class="frame"><img src="assets/opensearch.webp" width="1568" height="665" loading="lazy" alt="The OpenSearch panel marked could be tuned. A blue suggestion box explains that this is a single-node cluster so 3 replica shards cannot be placed and the cluster reports yellow, searches are unaffected, and number_of_replicas could be set to 0. Tiles show documents, store size, indices, average query and index latency, unplaced replicas and live latencies. Gauges show 100% primary shards active and 42% JVM heap. A table lists three magento2 product indices with health, docs and size."></div>
+          <figcaption>A suggestion is not an alert. The status says "Could be tuned", the headline still says all services are running, and the panel explains what to change.</figcaption>
+        </figure>
+        <figure class="shot">
+          <div class="frame"><img src="assets/rabbitmq.webp" width="1568" height="665" loading="lazy" alt="The RabbitMQ panel: RabbitMQ 3.10.20 on Erlang 25.3 with a 0.23 ms round trip. Configuration lists the AMQP endpoint, virtual host, user, TLS, management API URL, version, cluster and a backlog without consumers of 2 queues. Tiles show 24 queues, 6 ready, unacked, consumers, publish and deliver rates and connections. A table of queues in vhost / highlights two rows in amber: media.storage.catalog.image.resize with 4 ready and inventory.reservations.updateSalabilityStatus with 2 ready, both with no consumers."></div>
+          <figcaption>Queues with messages waiting and no consumer are highlighted, which is usually a consumer that stopped or a cron that is not running.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="set" id="live" aria-labelledby="li-h">
+      <h2 class="legend" id="li-h">Live, with nothing on the server</h2>
+      <p class="help">The page polls every 5, 15 or 30 seconds, or stays paused. History and rates live in the browser tab, so the module needs no table, cron job or agent.</p>
+      <div class="split">
+        <ul class="points">
+          <li><b>One request per probe.</b> Panels fill in as each backend answers. The admin session lock is released first, so the requests really run in parallel.</li>
+          <li><b>Sparklines</b> for the last 40 polls on every figure and on each backend's round-trip time.</li>
+          <li><b>Rates worked out in the page.</b> Probes return monotonic counters, and the browser turns the difference between polls into queries per second, hit ratio now and query latency now.</li>
+          <li><b>Every node behind the load balancer.</b> Each poll lands on whichever node answers. Nodes are listed as they are seen, with their own panel, and marked stale when one stops answering.</li>
+          <li><b>Pauses when hidden.</b> Polling stops in a background tab and resumes with a fresh round when you come back. An expired admin session is reported instead of silently failing.</li>
+          <li><b>Clear words, not codes.</b> Headlines read "All 4 services are healthy", "OpenSearch needs attention" or "Redis is unreachable".</li>
+        </ul>
+        <div class="tablewrap" style="margin-top:0">
+          <table class="status">
+            <caption class="skip">The five statuses</caption>
+            <thead><tr><th scope="col">Status</th><th scope="col">Means</th></tr></thead>
+            <tbody>
+              <tr><td><span class="dot ok"></span>Healthy</td><td>Reachable and nothing to report.</td></tr>
+              <tr><td><span class="dot tip"></span>Could be tuned</td><td>Working fine, with a suggestion worth knowing about. Never changes the headline to an alert.</td></tr>
+              <tr><td><span class="dot warn"></span>Degraded</td><td>Reachable, but a threshold is crossed: a backlog, memory, connections, lag or a yellow cluster.</td></tr>
+              <tr><td><span class="dot down"></span>Unreachable</td><td>The probe could not connect, or the configuration cannot work, such as writing to a replica.</td></tr>
+              <tr><td><span class="dot off"></span>Not used</td><td>Nothing is configured for this backend, so it is listed quietly at the bottom.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="set" id="hosting" aria-labelledby="ho-h">
+      <h2 class="legend" id="ho-h">Knows your hosting</h2>
+      <p class="help">A hostname says a lot. The probes recognise managed endpoints and container platforms, and use that to explain what they find in your terms.</p>
+      <div class="types">
+        <div><h3>MySQL endpoints</h3><ul class="chips"><li>Aurora cluster (writer)</li><li>Aurora reader</li><li>Aurora custom</li><li>Aurora instance</li><li>RDS instance</li><li>RDS Proxy</li><li>Azure Database for MySQL</li><li>DigitalOcean</li><li>MariaDB</li></ul></div>
+        <div><h3>Redis endpoints</h3><ul class="chips"><li>ElastiCache primary</li><li>ElastiCache reader</li><li>ElastiCache cluster config</li><li>ElastiCache Serverless</li><li>MemoryDB</li><li>Azure Cache for Redis</li><li>DigitalOcean</li><li>Unix socket</li><li>Valkey</li></ul></div>
+        <div><h3>Platforms</h3><ul class="chips"><li>AWS ECS on Fargate</li><li>AWS ECS</li><li>Kubernetes</li><li>Azure App Service</li><li>Docker and containerd</li><li>Linux host or VM</li></ul></div>
+        <div><h3>Shared storage</h3><ul class="chips"><li>NFS</li><li>Amazon EFS</li><li>Amazon FSx</li><li>Azure Files</li><li>SMB/CIFS</li><li>GlusterFS</li><li>CephFS</li><li>S3 via s3fs, goofys or Mountpoint</li><li>JuiceFS</li><li>virtiofs and 9p</li></ul></div>
+      </div>
+      <div class="grid2">
+        <div class="item"><h3>Catches the quiet misconfigurations</h3><p>The main connection pointing at an Aurora reader after a failover. Cache writes going to an ElastiCache reader endpoint. A Redis replication group with cluster mode on, which Magento's client cannot follow. A read connection that reaches the writer, so nothing is offloaded. Each is reported with the fix in one sentence.</p></div>
+        <div class="item"><h3>Honest inside a container</h3><p>Load and core count are labelled as the host's, and the memory figure is the cgroup's, with the reclaimable page cache taken out, against the container limit. Works with cgroup v1 and v2.</p></div>
+      </div>
+    </section>
+
+    <section class="set" id="cli" aria-labelledby="cl-h">
+      <h2 class="legend" id="cl-h">From the terminal</h2>
+      <p class="help">The same probes run from the command line, which is handy on one specific node or from a monitoring script. The exit code is 1 when anything is unreachable.</p>
+<pre class="term" style="margin-top:24px"><span class="p">$</span> bin/magento infrahealth:status
+<span class="ok">OK   </span> App node       app-1                             PHP 8.4.27 (cli)
+<span class="ok">OK   </span> MySQL          mysql                    0.53 ms  MySQL 8.0.46, writer, up 12d 2h
+<span class="ok">OK   </span> Redis          redis:6379               0.06 ms  v6.2.24 master, up 12d
+<span class="tip">TIP  </span> OpenSearch     opensearch:9200          0.51 ms  opensearch 2.19.2, cluster yellow, 1 node
+      <span class="tip">tip:</span> This is a single-node cluster, so 4 replica shards can't be placed and the
+      cluster reports yellow. Searches are unaffected. Setting number_of_replicas to 0 on
+      these indices would turn it green, or add a second node if you want redundancy.
+<span class="ok">OK   </span> RabbitMQ       rabbitmq:5672            0.24 ms  RabbitMQ 3.10.20 on Erlang 25.3
+<span class="ok">OK   </span> MySQL queue    queue_message             1.8 ms  3 queues on MySQL
+<span class="dim">node app-1 · 216.8 ms</span>
+
+<span class="p">$</span> bin/magento infrahealth:status --json <span class="dim">| jq '.services[] | {label, status, latency_ms}'</span></pre>
+      <div class="grid2 three">
+        <div class="item"><h3>Plain text</h3><p>One line per backend, with the suggestions underneath.</p></div>
+        <div class="item"><h3>JSON</h3><p>The full snapshot: node, wiring, and every service's configuration, stats, gauges, tables and tips. The same shape the admin page consumes.</p></div>
+        <div class="item"><h3>Exit code</h3><p>0 when everything is reachable, 1 when anything is down, so it drops into a health check or a deployment gate as it is.</p></div>
+      </div>
+    </section>
+
+    <section class="set" id="extend" aria-labelledby="ex-h">
+      <h2 class="legend" id="ex-h">Extend</h2>
+      <p class="help">Add a probe for Varnish, a CDN or your own service from a module of yours. Implement one interface, register it in di.xml, and it gets a box on the board, a panel, sparklines and a line in the CLI.</p>
+      <div class="grid2">
+        <div class="item"><h3>Probes</h3><p>Implement <code>ProbeInterface</code> and return one result per instance. Add configuration lines, stats, ring gauges, tables with row highlights, tips and counters for live rates. A probe that throws is shown as unreachable, never a broken page.</p></div>
+        <div class="item"><h3>Wiring rows</h3><p>Implement <code>WiringProviderInterface</code> to add rows to the board, linked to your probe or standing alone. Providers run on page render, so they read configuration only.</p></div>
+      </div>
+<pre class="code" style="margin-top:24px">&lt;type name="Furan\InfraHealth\Model\ProbeRunner"&gt;
+    &lt;arguments&gt;
+        &lt;argument name="probes" xsi:type="array"&gt;
+            &lt;item name="varnish" xsi:type="object"&gt;Vendor\Module\Model\VarnishProbe&lt;/item&gt;
+        &lt;/argument&gt;
+    &lt;/arguments&gt;
+&lt;/type&gt;</pre>
+<pre class="code" style="margin-top:16px">public function run(): array
+{
+    $result = new ProbeResult('varnish', 'Varnish', 'varnish:6081');
+    $result->addStat('objects', 'Objects', $objects);
+    $result->addGauge('Hit ratio', $hitRatio, '', true);
+
+    return [$result];
+}</pre>
+      <p style="margin-top:20px"><a class="btn" href="https://github.com/furan917/Magento2-InfraHealth#adding-a-check">Read the extending notes</a></p>
+    </section>
+
+    <section class="set" id="safety" aria-labelledby="sa-h">
+      <h2 class="legend" id="sa-h">Read-only by design</h2>
+      <p class="help">A health page should never be the thing that hurts production. Every probe is bounded, read only and careful with secrets.</p>
+      <div class="grid2">
+        <div class="item"><h3>Only reads</h3><p>MySQL runs SELECT and SHOW. Redis runs PING and INFO, never KEYS or SCAN. Search uses GET on health, node stats and the index list, and no test document is ever written. RabbitMQ uses the management API or passive declares, which never create a queue.</p></div>
+        <div class="item"><h3>Hard timeouts</h3><p>HTTP connects in 1 second and finishes in 2.5 with an 8 MB cap. Redis has 1.5 seconds, MySQL readers 2, and the AMQP fallback stops after 3 seconds of declares. A dead backend cannot pin a PHP-FPM worker.</p></div>
+        <div class="item"><h3>No secrets on screen</h3><p>Passwords never leave the server. Configuration shows "password set" or "ACL user set", and any user:password embedded in a URL or mount source is stripped before it is displayed or logged.</p></div>
+        <div class="item"><h3>Nothing stored</h3><p>No database tables, no files, no cron. History, sparklines and rates exist only in the open browser tab and are gone when it closes.</p></div>
+        <div class="item"><h3>Locked down</h3><p>Its own ACL resource under System &gt; Tools. The stats endpoint accepts only a probe code from the registered pool, so it cannot be pointed at another host, and responses are sent with no-store.</p></div>
+        <div class="item"><h3>Safe rendering</h3><p>The page builds its DOM with text nodes only. Nothing a backend returns is ever inserted as HTML.</p></div>
+      </div>
+    </section>
+
+    <section class="set" id="limits" aria-labelledby="gk-h">
+      <h2 class="legend" id="gk-h">Good to know</h2>
+      <ul class="limits">
+        <li><b>RabbitMQ rates need the management API</b><span>Port 15672 is tried by default, or 15671 with TLS. Set <code>infra_health/rabbitmq_management_url</code> in env.php when it lives elsewhere. Without it, queue depths and consumers still come over AMQP.</span></li>
+        <li><b>Replica lag needs a privilege</b><span>Classic MySQL and RDS replicas report lag through SHOW REPLICA STATUS, which needs REPLICATION CLIENT. Without it, lag is simply not shown. Aurora needs nothing extra.</span></li>
+        <li><b>Managed search clusters may deny some reads</b><span>Cluster health, the index list and node stats are each optional. Anything refused is listed under "Not readable" and the rest of the panel still works.</span></li>
+        <li><b>The App node panel is whichever node answered</b><span>Behind a load balancer you will see nodes appear over several polls. The CLI command is the way to look at one specific node.</span></li>
+      </ul>
+    </section>
+
+    <section class="set" id="install" aria-labelledby="in-h">
+      <h2 class="legend" id="in-h">Install</h2>
+      <p class="help">On an existing store. The page is under System &gt; Tools &gt; Infrastructure Health once it is installed, and the CLI command is available straight away.</p>
+<pre class="code" style="margin-top:24px">composer require furan/magento-infra-health
+bin/magento module:enable Furan_InfraHealth
+bin/magento setup:upgrade
+<span class="c"># production mode only</span>
+bin/magento setup:di:compile
+bin/magento setup:static-content:deploy</pre>
+      <dl class="req">
+        <div><dt>Requires</dt><dd>Magento 2.4 or Mage-OS, and PHP 8.0 or later. Nothing else: no tables, no cron group, no queue consumers.</dd></div>
+        <div><dt>Optional</dt><dd>The RabbitMQ management plugin for queue rates. Magento_MysqlMq for the MySQL queue panel.</dd></div>
+        <div><dt>Configuration</dt><dd>One optional key in env.php, <code>infra_health/rabbitmq_management_url</code>, when the management API is not on the broker host.</dd></div>
+      </dl>
+    </section>
+  </main>
+
+  <footer>
+    <span>MIT licence. Made by Francis Gallagher, Chief Architect @ Akoova. Built and tested on Mage-OS 4.0.</span>
+    <span><a href="https://github.com/furan917/Magento2-InfraHealth">Source</a> <a href="https://github.com/furan917/Magento2-InfraHealth/issues">Report an issue</a></span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  document.querySelectorAll('[data-copy]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const text = document.getElementById(button.dataset.copy).textContent.trim();
+      try { await navigator.clipboard.writeText(text); button.textContent = 'Copied'; }
+      catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById(button.dataset.copy)); const s = getSelection(); s.removeAllRanges(); s.addRange(r); button.textContent = 'Selected'; }
+      setTimeout(() => { button.textContent = 'Copy'; }, 1800);
+    });
+  });
+})();
+</script>
+</body>
+</html>
